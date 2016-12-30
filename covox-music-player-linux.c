@@ -110,139 +110,139 @@ int main(int argc, char *argv[]){
 	int parallelPortBaseAddress = (int)strtol(parallelPortAddressStr, NULL, 0);
 
 	if(parallelPortBaseAddress == 0L //Unable to convert given address to hex number
-		|| ioperm(parallelPortBaseAddress, 8, 1) == -1){ //Set permissions to access port
+		|| ioperm(parallelPortBaseAddress, 8, 1) == -1)	{ //Set permissions to access port
 
 			printf("Invalid parallel port base address.\n");
 			return ERROR_CODE_PARALLEL_ADDRESS;
+	}
+
+
+	printf("Attempting to play file %s to port at %s\n", filename, parallelPortAddressStr);
+
+
+	//Open file using lsndfile API
+	SF_INFO sfinfo;
+	memset (&sfinfo, 0, sizeof (sfinfo)) ;
+
+	SNDFILE* soundFile = sf_open(filename, SFM_READ, &sfinfo);
+
+	if(soundFile == NULL){
+
+		int errorCode = sf_error(soundFile) ;
+
+		switch(errorCode){
+			case SF_ERR_NO_ERROR:
+			printf("No error huh?\n");
+			break;
+			case SF_ERR_UNRECOGNISED_FORMAT:
+			printf("Unrecognised file format\n");
+			break;
+			case SF_ERR_SYSTEM:
+			printf("System error, probably a missing file\n");
+			break;
+			case SF_ERR_MALFORMED_FILE:
+			printf("Malformed File\n");
+			break;
+			case SF_ERR_UNSUPPORTED_ENCODING:
+			printf("Unsupported encoding\n");
+			break;
+			default:
+			printf("Unknown error code from libsnd library\n");
+		}
+
+		return ERROR_CODE_CANNOT_OPEN_FILE;
+	}
+
+
+
+	printf("\nFile details:\n");
+
+	int sampleRate = sfinfo.samplerate;
+
+	printf ("Sample Rate : %d\n", sampleRate) ;
+
+	long frames = sfinfo.frames;
+
+	if (frames == SF_COUNT_MAX){
+		printf ("Frames      : unknown\n") ;
+	} else {
+		printf ("Frames      : %ld\n", frames) ;
+	}
+
+	int channels = sfinfo.channels;
+
+	printf ("Channels    : %d\n", channels) ;
+	printf ("Format      : 0x%08X\n", sfinfo.format) ;
+	printf ("Sections    : %d\n", sfinfo.sections) ;
+	printf ("Seekable    : %s\n", (sfinfo.seekable ? "TRUE" : "FALSE")) ;
+	printf ("Duration    : %s\n", generate_duration_str (&sfinfo)) ;
+
+	int totalItems = frames * channels;
+
+	short * buf = (short *) malloc(totalItems * sizeof(short));
+	int totalCount = sf_readf_short (soundFile, buf, frames);
+	sf_close(soundFile);
+
+	printf("Total Frames Read from file: %d\n", totalCount);
+
+
+	//Calculate how many nanoseconds to play each frame
+	long long nanosecondsPerFrame = 1E9 / sampleRate;
+
+	long long startSpecTime = getCurrentNanoseconds();
+
+	long long currentSpecTime;
+	long long timeSinceStart;
+	int frameNumber = 0;
+	int previousFrameNumber = 0;
+
+	while(1){
+
+		currentSpecTime = getCurrentNanoseconds();
+		timeSinceStart = currentSpecTime - startSpecTime;
+
+
+		frameNumber = timeSinceStart / nanosecondsPerFrame;
+
+		if(frameNumber >= totalCount){
+			break;
 		}
 
 
-		printf("Attempting to play file %s to port at %s\n", filename, parallelPortAddressStr);
+		int diff = frameNumber - previousFrameNumber;
 
-
-		//Open file using lsndfile API
-		SF_INFO sfinfo;
-		memset (&sfinfo, 0, sizeof (sfinfo)) ;
-
-		SNDFILE* soundFile = sf_open(filename, SFM_READ, &sfinfo);
-
-		if(soundFile == NULL){
-
-			int errorCode = sf_error(soundFile) ;
-
-			switch(errorCode){
-				case SF_ERR_NO_ERROR:
-				printf("No error huh?\n");
-				break;
-				case SF_ERR_UNRECOGNISED_FORMAT:
-				printf("Unrecognised file format\n");
-				break;
-				case SF_ERR_SYSTEM:
-				printf("System error, probably a missing file\n");
-				break;
-				case SF_ERR_MALFORMED_FILE:
-				printf("Malformed File\n");
-				break;
-				case SF_ERR_UNSUPPORTED_ENCODING:
-				printf("Unsupported encoding\n");
-				break;
-				default:
-				printf("Unknown error code from libsnd library\n");
-			}
-
-			return ERROR_CODE_CANNOT_OPEN_FILE;
+		if(diff > 1){
+			printf("diff %d\n", diff);
 		}
 
+		previousFrameNumber = frameNumber;
 
+		//Average values to merge all channels to mono
+		int sum = 0;
 
-		printf("\nFile details:\n");
-
-		int sampleRate = sfinfo.samplerate;
-
-		printf ("Sample Rate : %d\n", sampleRate) ;
-
-		long frames = sfinfo.frames;
-
-		if (frames == SF_COUNT_MAX){
-			printf ("Frames      : unknown\n") ;
-		} else {
-			printf ("Frames      : %ld\n", frames) ;
+		for (int m = 0 ; m < 1 ; m++) {
+			sum += buf [frameNumber * channels + m];
 		}
 
-		int channels = sfinfo.channels;
-
-		printf ("Channels    : %d\n", channels) ;
-		printf ("Format      : 0x%08X\n", sfinfo.format) ;
-		printf ("Sections    : %d\n", sfinfo.sections) ;
-		printf ("Seekable    : %s\n", (sfinfo.seekable ? "TRUE" : "FALSE")) ;
-		printf ("Duration    : %s\n", generate_duration_str (&sfinfo)) ;
-
-		int totalItems = frames * channels;
-
-		short * buf = (short *) malloc(totalItems * sizeof(short));
-		int totalCount = sf_readf_short (soundFile, buf, frames);
-		sf_close(soundFile);
-
-		printf("Total Frames Read from file: %d\n", totalCount);
+		short value = sum / channels;
 
 
-		//Calculate how many nanoseconds to play each frame
-		long long nanosecondsPerFrame = 1E9 / sampleRate;
-
-		long long startSpecTime = getCurrentNanoseconds();
-
-		long long currentSpecTime;
-		long long timeSinceStart;
-		int frameNumber = 0;
-		int previousFrameNumber = 0;
-
-		while(1){
-
-			currentSpecTime = getCurrentNanoseconds();
-			timeSinceStart = currentSpecTime - startSpecTime;
-
-
-			frameNumber = timeSinceStart / nanosecondsPerFrame;
-
-			if(frameNumber >= totalCount){
-				break;
-			}
-
-
-			int diff = frameNumber - previousFrameNumber;
-
-			if(diff > 1){
-				printf("diff %d\n", diff);
-			}
-
-			previousFrameNumber = frameNumber;
-
-			//Average values to merge all channels to mono
-			int sum = 0;
-
-			for (int m = 0 ; m < 1 ; m++) {
-				sum += buf [frameNumber * channels + m];
-			}
-
-			short value = sum / channels;
-
-
-			uint8_t smallValue = mapShortTo8bit(value);
-			outb(smallValue, parallelPortBaseAddress);
-		}
+		uint8_t smallValue = mapShortTo8bit(value);
+		outb(smallValue, parallelPortBaseAddress);
+	}
 
 
 
 
-		free(buf);
+	free(buf);
 
-		outb(0, parallelPortBaseAddress);
+	outb(0, parallelPortBaseAddress);
 
-		//Take away permissions to access port
-		if (ioperm(parallelPortBaseAddress, 8, 0)) {
-			printf("Error closing parallel port\n");
-			return ERROR_CODE_PARALLEL_ADDRESS;
-		}
+	//Take away permissions to access port
+	if (ioperm(parallelPortBaseAddress, 8, 0)) {
+		printf("Error closing parallel port\n");
+		return ERROR_CODE_PARALLEL_ADDRESS;
+	}
 
-		return 0;
+	return 0;
 	}
