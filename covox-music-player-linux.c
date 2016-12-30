@@ -8,6 +8,7 @@
 #include <limits.h>
 #include <string.h>
 #include <time.h>
+#include <pthread.h>
 
 #define ERROR_CODE_WRONG_ARG 1
 #define ERROR_CODE_CANNOT_OPEN_FILE 2
@@ -75,6 +76,61 @@ long long getCurrentNanoseconds(){
 	return specTime;
 }
 
+int parallelPortBaseAddress;
+
+short * dataBuffer;
+int totalCount;
+
+
+long long nanosecondsPerFrame;
+
+long long startSpecTime;
+
+long long currentSpecTime;
+long long timeSinceStart;
+int frameNumber;
+int previousFrameNumber;
+int channels;
+
+long framesSkippedCumulativeUIThread = 0;
+long framesSkippedCumulativePlaybackThread = 0;
+
+void *playbackFunction(void *inputPtr){
+	while(1){
+
+		currentSpecTime = getCurrentNanoseconds();
+		timeSinceStart = currentSpecTime - startSpecTime;
+
+
+		frameNumber = timeSinceStart / nanosecondsPerFrame;
+
+		if(frameNumber >= totalCount){
+			break;
+		}
+
+		//Only accumulate the skipping if the difference is greater than the usual 1 increment
+		if((frameNumber - previousFrameNumber) > 1){
+				framesSkippedCumulativePlaybackThread += frameNumber - previousFrameNumber - 1;
+		}
+
+		previousFrameNumber = frameNumber;
+
+		//Average values to merge all channels to mono
+		int sum = 0;
+
+		for (int m = 0 ; m < 1 ; m++) {
+			sum += dataBuffer[frameNumber * channels + m];
+		}
+
+		short value = sum / channels;
+
+
+		uint8_t smallValue = mapShortTo8bit(value);
+		outb(smallValue, parallelPortBaseAddress);
+	}
+
+}
+
 int main(int argc, char *argv[]){
 
 
@@ -107,7 +163,7 @@ int main(int argc, char *argv[]){
 	printf("Attempting to open parallel port at %s\n", parallelPortAddressStr);
 
 
-	int parallelPortBaseAddress = (int)strtol(parallelPortAddressStr, NULL, 0);
+	parallelPortBaseAddress = (int)strtol(parallelPortAddressStr, NULL, 0);
 
 	if(parallelPortBaseAddress == 0L //Unable to convert given address to hex number
 		|| ioperm(parallelPortBaseAddress, 8, 1) == -1)	{ //Set permissions to access port
@@ -169,7 +225,7 @@ int main(int argc, char *argv[]){
 		printf ("Frames      : %ld\n", frames) ;
 	}
 
-	int channels = sfinfo.channels;
+	channels = sfinfo.channels;
 
 	printf ("Channels    : %d\n", channels) ;
 	printf ("Format      : 0x%08X\n", sfinfo.format) ;
@@ -179,62 +235,41 @@ int main(int argc, char *argv[]){
 
 	int totalItems = frames * channels;
 
-	short * buf = (short *) malloc(totalItems * sizeof(short));
-	int totalCount = sf_readf_short (soundFile, buf, frames);
+	dataBuffer = (short *) malloc(totalItems * sizeof(short));
+	totalCount = sf_readf_short (soundFile, dataBuffer, frames);
 	sf_close(soundFile);
 
 	printf("Total Frames Read from file: %d\n", totalCount);
 
 
 	//Calculate how many nanoseconds to play each frame
-	long long nanosecondsPerFrame = 1E9 / sampleRate;
+	nanosecondsPerFrame = 1E9 / sampleRate;
 
-	long long startSpecTime = getCurrentNanoseconds();
+	startSpecTime = getCurrentNanoseconds();
+	frameNumber = 0;
+	previousFrameNumber = 0;
 
-	long long currentSpecTime;
-	long long timeSinceStart;
-	int frameNumber = 0;
-	int previousFrameNumber = 0;
+	//setbuf(stdout, NULL);
 
-	while(1){
+	pthread_t playBackThread;
+	pthread_create(&playBackThread, NULL, playbackFunction, NULL);
 
-		currentSpecTime = getCurrentNanoseconds();
-		timeSinceStart = currentSpecTime - startSpecTime;
+  while(1){
+		usleep(100000);
 
+		if(framesSkippedCumulativePlaybackThread != framesSkippedCumulativeUIThread){
 
-		frameNumber = timeSinceStart / nanosecondsPerFrame;
+			int diff = framesSkippedCumulativePlaybackThread - framesSkippedCumulativeUIThread;
 
-		if(frameNumber >= totalCount){
-			break;
+			framesSkippedCumulativeUIThread = framesSkippedCumulativePlaybackThread;
+
+			printf("framesSkipped %d\n", diff);
+
 		}
 
-
-		int diff = frameNumber - previousFrameNumber;
-
-		if(diff > 1){
-			printf("diff %d\n", diff);
-		}
-
-		previousFrameNumber = frameNumber;
-
-		//Average values to merge all channels to mono
-		int sum = 0;
-
-		for (int m = 0 ; m < 1 ; m++) {
-			sum += buf [frameNumber * channels + m];
-		}
-
-		short value = sum / channels;
-
-
-		uint8_t smallValue = mapShortTo8bit(value);
-		outb(smallValue, parallelPortBaseAddress);
 	}
 
-
-
-
-	free(buf);
+	free(dataBuffer);
 
 	outb(0, parallelPortBaseAddress);
 
