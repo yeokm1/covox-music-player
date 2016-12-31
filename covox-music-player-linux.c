@@ -69,6 +69,8 @@ int main(int argc, char *argv[]){
 	char * parallelPortAddressStr = argv[2];
 	const char * fileExtension = getFilenameExtension(filename);
 
+	remove(FILENAME_WAV_CONVERT);
+
 	//If file does not have wav extension, call FFMPEG to convert it to wav before proceeding
 	if(strcmp(fileExtension, "wav") != 0){
 		printf("File is not wav, converting to wav using FFMPEG\n");
