@@ -50,7 +50,7 @@ long long currentSpecTime;
 long long timeSinceStart;
 long long pauseTime;
 
-int frameNumber;
+int currentFrameNumber;
 int previousFrameNumber;
 int channels;
 
@@ -178,7 +178,7 @@ int main(int argc, char *argv[]){
 	nanosecondsPerFrame = 1E9 / sampleRate;
 
 	startSpecTime = getCurrentNanoseconds();
-	frameNumber = 0;
+	currentFrameNumber = 0;
 	previousFrameNumber = 0;
 
 
@@ -190,11 +190,12 @@ int main(int argc, char *argv[]){
 
 		if(!pausePlayback){
 
-			if(frameNumber >= totalCount){
+			if(currentFrameNumber >= totalCount){
 				break;
 			}
 
-			double secondsPlayed = 1.0 * frameNumber / sampleRate;
+			//Multiply 1.0 is to convert to double
+			double secondsPlayed = 1.0 * currentFrameNumber / sampleRate;
 
 			const char * currentPlayTime = formatDurationStr(secondsPlayed);
 
@@ -279,24 +280,23 @@ void *playbackThreadFunction(void *inputPtr){
 
 		currentSpecTime = getCurrentNanoseconds();
 		timeSinceStart = currentSpecTime - startSpecTime;
-		frameNumber = timeSinceStart / nanosecondsPerFrame;
+		currentFrameNumber = timeSinceStart / nanosecondsPerFrame;
 
-		if(frameNumber >= totalCount){
+		if(currentFrameNumber >= totalCount){
 			break;
 		}
 
 		//Only accumulate the skipping if the difference is greater than the usual 1 increment
-		if((frameNumber - previousFrameNumber) > 1){
-				framesSkippedCumulativePlaybackThread += frameNumber - previousFrameNumber - 1;
+		if((currentFrameNumber - previousFrameNumber) > 1){
+				framesSkippedCumulativePlaybackThread += currentFrameNumber - previousFrameNumber - 1;
 		}
 
-		previousFrameNumber = frameNumber;
+		previousFrameNumber = currentFrameNumber;
 
 		//Average values to merge all channels to mono
 		int sum = 0;
-
 		for (int m = 0 ; m < 1 ; m++) {
-			sum += dataBuffer[frameNumber * channels + m];
+			sum += dataBuffer[currentFrameNumber * channels + m];
 		}
 
 		short value = sum / channels;
