@@ -249,6 +249,7 @@ int main(int argc, char *argv[]){
 
 	free(dataBuffer);
 
+	//Revert parallelPort state to all 0
 	outb(0, parallelPortBaseAddress);
 
 	printf("\n");
