@@ -9,6 +9,9 @@
 #include <string.h>
 #include <time.h>
 #include <pthread.h>
+#include <termios.h>
+#include <stdbool.h>
+
 
 #define ERROR_CODE_WRONG_ARG 1
 #define ERROR_CODE_CANNOT_OPEN_FILE 2
@@ -16,8 +19,16 @@
 
 #define FILENAME_WAV_CONVERT "/tmp/covox-wav-convert.wav"
 
-//Store and force overwrite converted wav file in tmp directory as libsndfile can only process files
+//Store and force overwrite converted wav file in tmp directory as libsndfile can only process wav files
 #define FORMAT_COMMAND_FFMPEG "ffmpeg -y -i %s /tmp/covox-wav-convert.wav"
+
+#define CODE_SPACEBAR 32
+#define CODE_ESCAPE 27
+
+struct termios initial_settings, new_settings;
+
+bool pausePlayback = false;
+bool endPlayback = false;
 
 
 static const char * format_duration_str (double seconds){
@@ -98,6 +109,17 @@ long framesSkippedCumulativePlaybackThread = 0;
 void *playbackFunction(void *inputPtr){
 	while(1){
 
+		if(endPlayback){
+			break;
+		}
+
+		if(pausePlayback){
+			usleep(10000);
+			continue;
+		}
+
+
+
 		currentSpecTime = getCurrentNanoseconds();
 		timeSinceStart = currentSpecTime - startSpecTime;
 
@@ -130,6 +152,8 @@ void *playbackFunction(void *inputPtr){
 	}
 
 }
+
+
 
 int main(int argc, char *argv[]){
 
@@ -210,6 +234,20 @@ int main(int argc, char *argv[]){
 	}
 
 
+	//Source https://gist.github.com/whyrusleeping/3983293
+	tcgetattr(0,&initial_settings);
+
+	//Disable delay on getchar
+	new_settings = initial_settings;
+	new_settings.c_lflag &= ~ICANON;
+	new_settings.c_lflag &= ~ECHO;
+	new_settings.c_lflag &= ~ISIG;
+	new_settings.c_cc[VMIN] = 0;
+	new_settings.c_cc[VTIME] = 0;
+
+	tcsetattr(0, TCSANOW, &new_settings);
+
+
 
 	printf("\nFile details:\n");
 
@@ -239,7 +277,9 @@ int main(int argc, char *argv[]){
 	totalCount = sf_readf_short (soundFile, dataBuffer, frames);
 	sf_close(soundFile);
 
-	printf("Total Frames Read from file: %d\n", totalCount);
+	printf("Total Frames Read from file: %d\n\n", totalCount);
+
+	printf("Press spacebar to pause, Escape to exit\n\n");
 
 
 	//Calculate how many nanoseconds to play each frame
@@ -254,39 +294,61 @@ int main(int argc, char *argv[]){
 	pthread_t playBackThread;
 	pthread_create(&playBackThread, NULL, playbackFunction, NULL);
 
+
   while(1){
 		usleep(100000);
 
-		double secondsPlayed = 1.0 * frameNumber / sampleRate;
+		if(!pausePlayback){
 
-		const char * currentPlayTime = format_duration_str(secondsPlayed);
+			double secondsPlayed = 1.0 * frameNumber / sampleRate;
 
-		int framesSkipped = 0;
+			const char * currentPlayTime = format_duration_str(secondsPlayed);
 
-		if(framesSkippedCumulativePlaybackThread != framesSkippedCumulativeUIThread){
+			int framesSkipped = 0;
 
-			int diff = framesSkippedCumulativePlaybackThread - framesSkippedCumulativeUIThread;
+			if(framesSkippedCumulativePlaybackThread != framesSkippedCumulativeUIThread){
 
-			framesSkippedCumulativeUIThread = framesSkippedCumulativePlaybackThread;
+				int diff = framesSkippedCumulativePlaybackThread - framesSkippedCumulativeUIThread;
 
-			framesSkipped = diff;
+				framesSkippedCumulativeUIThread = framesSkippedCumulativePlaybackThread;
 
+				framesSkipped = diff;
+
+			}
+
+			printf("\rPosition: %s, framesSkipped: %03d", currentPlayTime, framesSkipped);
+
+			if(framesSkipped > 0){
+				printf("\n");
+			}
 		}
 
-		printf("\rPosition: %s, framesSkipped: %03d", currentPlayTime, framesSkipped);
+		int readChar = getchar();
 
-		if(framesSkipped > 0){
-			printf("\n");
+		if(readChar == CODE_SPACEBAR){
+			pausePlayback = !pausePlayback;
+			printf("\nPaused. Press spacebar to resume.");
+		} else if(readChar == CODE_ESCAPE){
+			endPlayback = true;
+			break;
 		}
-
 
 		fflush(stdout);
 
+
 	}
+
+
+	pthread_join(playBackThread, NULL);
 
 	free(dataBuffer);
 
 	outb(0, parallelPortBaseAddress);
+
+	//Restore previous terminal settings
+	tcsetattr(0, TCSANOW, &initial_settings);
+
+	printf("\n");
 
 	//Take away permissions to access port
 	if (ioperm(parallelPortBaseAddress, 8, 0)) {
