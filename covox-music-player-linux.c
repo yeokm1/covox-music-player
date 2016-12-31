@@ -256,9 +256,9 @@ int main(int argc, char *argv[]){
 
 	outb(0, parallelPortBaseAddress);
 
-	revertKeyboardBlock();
-
 	printf("\n");
+
+	revertKeyboardBlock();
 
 	//Take away permissions to access port
 	if (ioperm(parallelPortBaseAddress, 8, 0)) {
