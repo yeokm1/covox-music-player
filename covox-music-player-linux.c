@@ -27,48 +27,22 @@
 
 const char * formatDurationStr (double seconds);
 const char * generateDurationStr (SF_INFO *sfinfo);
+const char * getFilenameExtension(const char *filename);
+uint8_t mapShortTo8bit(short input);
+long long getCurrentNanoseconds();
 
 struct termios initial_settings, new_settings;
 
 bool pausePlayback = false;
 bool endPlayback = false;
 
-
-
-//From: http://stackoverflow.com/questions/5309471/getting-file-extension-in-c
-const char * get_filename_ext(const char *filename) {
-	const char *dot = strrchr(filename, '.');
-	if(!dot || dot == filename) return "";
-	return dot + 1;
-}
-
-uint8_t mapShortTo8bit(short input){
-
-	double slope = 1.0 * (UINT8_MAX - 0) / (SHRT_MAX - SHRT_MIN);
-	uint8_t output = 0 + slope * (input -  SHRT_MIN);
-
-	// printf("Convert %d to %" PRIu8 "\n",input, output);
-
-	return output;
-}
-
-long long getCurrentNanoseconds(){
-	struct timespec spec;
-	clock_gettime(CLOCK_MONOTONIC, &spec);
-	long long specTime = (spec.tv_sec * 1E9) + spec.tv_nsec;
-	return specTime;
-}
-
 int parallelPortBaseAddress;
 
 short * dataBuffer;
 int totalCount;
 
-
 long long nanosecondsPerFrame;
-
 long long startSpecTime;
-
 long long currentSpecTime;
 long long timeSinceStart;
 long long pauseTime;
@@ -137,7 +111,7 @@ int main(int argc, char *argv[]){
 
 	char * filename = argv[1];
 	char * parallelPortAddressStr = argv[2];
-	const char * fileExtension = get_filename_ext(filename);
+	const char * fileExtension = getFilenameExtension(filename);
 
 	//If file does not have wav extension, call FFMPEG to convert it to wav before proceeding
 	if(strcmp(fileExtension, "wav") != 0){
@@ -382,4 +356,24 @@ int main(int argc, char *argv[]){
 
 
 		return formatDurationStr(seconds) ;
+	}
+
+	//From: http://stackoverflow.com/questions/5309471/getting-file-extension-in-c
+	const char * getFilenameExtension(const char *filename) {
+		const char *dot = strrchr(filename, '.');
+		if(!dot || dot == filename) return "";
+		return dot + 1;
+	}
+
+	uint8_t mapShortTo8bit(short input){
+		double slope = 1.0 * (UINT8_MAX - 0) / (SHRT_MAX - SHRT_MIN);
+		uint8_t output = 0 + slope * (input -  SHRT_MIN);
+		return output;
+	}
+
+	long long getCurrentNanoseconds(){
+		struct timespec spec;
+		clock_gettime(CLOCK_MONOTONIC, &spec);
+		long long specTime = (spec.tv_sec * 1E9) + spec.tv_nsec;
+		return specTime;
 	}
