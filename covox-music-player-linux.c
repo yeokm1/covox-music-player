@@ -30,6 +30,7 @@ const char * generateDurationStr (SF_INFO *sfinfo);
 const char * getFilenameExtension(const char *filename);
 uint8_t mapShortTo8bit(short input);
 long long getCurrentNanoseconds();
+void *playbackThreadFunction(void *inputPtr);
 
 struct termios initial_settings, new_settings;
 
@@ -53,52 +54,6 @@ int channels;
 
 long framesSkippedCumulativeUIThread = 0;
 long framesSkippedCumulativePlaybackThread = 0;
-
-void *playbackFunction(void *inputPtr){
-	while(true){
-
-		if(endPlayback){
-			break;
-		}
-
-		if(pausePlayback){
-			usleep(10000);
-			continue;
-		}
-
-		currentSpecTime = getCurrentNanoseconds();
-		timeSinceStart = currentSpecTime - startSpecTime;
-
-
-		frameNumber = timeSinceStart / nanosecondsPerFrame;
-
-		if(frameNumber >= totalCount){
-			break;
-		}
-
-		//Only accumulate the skipping if the difference is greater than the usual 1 increment
-		if((frameNumber - previousFrameNumber) > 1){
-				framesSkippedCumulativePlaybackThread += frameNumber - previousFrameNumber - 1;
-		}
-
-		previousFrameNumber = frameNumber;
-
-		//Average values to merge all channels to mono
-		int sum = 0;
-
-		for (int m = 0 ; m < 1 ; m++) {
-			sum += dataBuffer[frameNumber * channels + m];
-		}
-
-		short value = sum / channels;
-
-
-		uint8_t smallValue = mapShortTo8bit(value);
-		outb(smallValue, parallelPortBaseAddress);
-	}
-
-}
-
 
 
 int main(int argc, char *argv[]){
@@ -238,7 +193,7 @@ int main(int argc, char *argv[]){
 	//setbuf(stdout, NULL);
 
 	pthread_t playBackThread;
-	pthread_create(&playBackThread, NULL, playbackFunction, NULL);
+	pthread_create(&playBackThread, NULL, playbackThreadFunction, NULL);
 
 
   while(true){
@@ -326,54 +281,99 @@ int main(int argc, char *argv[]){
 	return 0;
 	}
 
-	const char * formatDurationStr (double seconds){
-		static char str [128] ;
-		int hrs, min ;
-		double sec ;
+void *playbackThreadFunction(void *inputPtr){
+	while(true){
 
-		memset (str, 0, sizeof (str)) ;
+		if(endPlayback){
+			break;
+		}
 
-		hrs = (int) (seconds / 3600.0) ;
-		min = (int) ((seconds - (hrs * 3600.0)) / 60.0) ;
-		sec = seconds - (hrs * 3600.0) - (min * 60.0) ;
+		if(pausePlayback){
+			usleep(10000);
+			continue;
+		}
 
-		snprintf (str, sizeof (str) - 1, "%02d:%02d:%04.1f", hrs, min, sec) ;
+		currentSpecTime = getCurrentNanoseconds();
+		timeSinceStart = currentSpecTime - startSpecTime;
 
-		return str ;
+
+		frameNumber = timeSinceStart / nanosecondsPerFrame;
+
+		if(frameNumber >= totalCount){
+			break;
+		}
+
+		//Only accumulate the skipping if the difference is greater than the usual 1 increment
+		if((frameNumber - previousFrameNumber) > 1){
+				framesSkippedCumulativePlaybackThread += frameNumber - previousFrameNumber - 1;
+		}
+
+		previousFrameNumber = frameNumber;
+
+		//Average values to merge all channels to mono
+		int sum = 0;
+
+		for (int m = 0 ; m < 1 ; m++) {
+			sum += dataBuffer[frameNumber * channels + m];
+		}
+
+		short value = sum / channels;
+
+
+		uint8_t smallValue = mapShortTo8bit(value);
+		outb(smallValue, parallelPortBaseAddress);
 	}
 
+}
 
-	const char * generateDurationStr (SF_INFO *sfinfo){
-		double seconds ;
+const char * formatDurationStr (double seconds){
+	static char str [128] ;
+	int hrs, min ;
+	double sec ;
 
-		if (sfinfo->samplerate < 1)
-		return NULL ;
+	memset (str, 0, sizeof (str)) ;
 
-		if (sfinfo->frames / sfinfo->samplerate > 0x7FFFFFFF)
-		return "unknown" ;
+	hrs = (int) (seconds / 3600.0) ;
+	min = (int) ((seconds - (hrs * 3600.0)) / 60.0) ;
+	sec = seconds - (hrs * 3600.0) - (min * 60.0) ;
 
-		seconds = (1.0 * sfinfo->frames) / sfinfo->samplerate ;
+	snprintf (str, sizeof (str) - 1, "%02d:%02d:%04.1f", hrs, min, sec) ;
+
+	return str ;
+}
 
 
-		return formatDurationStr(seconds) ;
-	}
+const char * generateDurationStr (SF_INFO *sfinfo){
+	double seconds ;
 
-	//From: http://stackoverflow.com/questions/5309471/getting-file-extension-in-c
-	const char * getFilenameExtension(const char *filename) {
-		const char *dot = strrchr(filename, '.');
-		if(!dot || dot == filename) return "";
-		return dot + 1;
-	}
+	if (sfinfo->samplerate < 1)
+	return NULL ;
 
-	uint8_t mapShortTo8bit(short input){
-		double slope = 1.0 * (UINT8_MAX - 0) / (SHRT_MAX - SHRT_MIN);
-		uint8_t output = 0 + slope * (input -  SHRT_MIN);
-		return output;
-	}
+	if (sfinfo->frames / sfinfo->samplerate > 0x7FFFFFFF)
+	return "unknown" ;
 
-	long long getCurrentNanoseconds(){
-		struct timespec spec;
-		clock_gettime(CLOCK_MONOTONIC, &spec);
-		long long specTime = (spec.tv_sec * 1E9) + spec.tv_nsec;
-		return specTime;
-	}
+	seconds = (1.0 * sfinfo->frames) / sfinfo->samplerate ;
+
+
+	return formatDurationStr(seconds) ;
+}
+
+//From: http://stackoverflow.com/questions/5309471/getting-file-extension-in-c
+const char * getFilenameExtension(const char *filename) {
+	const char *dot = strrchr(filename, '.');
+	if(!dot || dot == filename) return "";
+	return dot + 1;
+}
+
+uint8_t mapShortTo8bit(short input){
+	double slope = 1.0 * (UINT8_MAX - 0) / (SHRT_MAX - SHRT_MIN);
+	uint8_t output = 0 + slope * (input -  SHRT_MIN);
+	return output;
+}
+
+long long getCurrentNanoseconds(){
+	struct timespec spec;
+	clock_gettime(CLOCK_MONOTONIC, &spec);
+	long long specTime = (spec.tv_sec * 1E9) + spec.tv_nsec;
+	return specTime;
+}
