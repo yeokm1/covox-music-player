@@ -99,6 +99,8 @@ long long startSpecTime;
 
 long long currentSpecTime;
 long long timeSinceStart;
+long long pauseTime;
+
 int frameNumber;
 int previousFrameNumber;
 int channels;
@@ -107,7 +109,7 @@ long framesSkippedCumulativeUIThread = 0;
 long framesSkippedCumulativePlaybackThread = 0;
 
 void *playbackFunction(void *inputPtr){
-	while(1){
+	while(true){
 
 		if(endPlayback){
 			break;
@@ -117,8 +119,6 @@ void *playbackFunction(void *inputPtr){
 			usleep(10000);
 			continue;
 		}
-
-
 
 		currentSpecTime = getCurrentNanoseconds();
 		timeSinceStart = currentSpecTime - startSpecTime;
@@ -295,7 +295,7 @@ int main(int argc, char *argv[]){
 	pthread_create(&playBackThread, NULL, playbackFunction, NULL);
 
 
-  while(1){
+  while(true){
 		usleep(100000);
 
 		if(!pausePlayback){
@@ -326,8 +326,25 @@ int main(int argc, char *argv[]){
 		int readChar = getchar();
 
 		if(readChar == CODE_SPACEBAR){
-			pausePlayback = !pausePlayback;
-			printf("\nPaused. Press spacebar to resume.");
+
+			if(pausePlayback){
+				//We have to unpause here
+
+				long long currentTime = getCurrentNanoseconds();
+
+				//We add the time we spent on pause to the time since start so the playback thread will be able to pace itself
+				long long timeOnPause = currentTime - pauseTime;
+				startSpecTime += timeOnPause;
+
+				pausePlayback = false;
+			} else {
+				//We need to pause here
+				pausePlayback = true;
+				pauseTime = getCurrentNanoseconds();
+				printf("\nPaused. Press spacebar to resume.");
+			}
+
+
 		} else if(readChar == CODE_ESCAPE){
 			endPlayback = true;
 			break;
