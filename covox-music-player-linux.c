@@ -63,14 +63,15 @@ int main(int argc, char *argv[]){
 
 
 	if(argc < 3){
-		printf("Insufficient arguments: Require music file and first parallel port address like this ./linux-covox-player file.mp3 0x378\n");
+		printf("Insufficient arguments: Require music file and first parallel port address eg: ./linux-covox-player 0x378 file.mp3\n");
 		return ERROR_CODE_WRONG_ARG;
 	}
 
-	char * filename = argv[1];
-	char * parallelPortAddressStr = argv[2];
+	char * parallelPortAddressStr = argv[1];
+	char * filename = argv[2];
 	const char * fileExtension = getFilenameExtension(filename);
 
+	//remove the previous temp file to avoid playing back this file should the ffmpeg conversion fail
 	remove(FILENAME_WAV_CONVERT);
 
 	//If file does not have wav extension, call FFMPEG to convert it to wav before proceeding
