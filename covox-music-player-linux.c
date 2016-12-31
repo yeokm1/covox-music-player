@@ -19,7 +19,7 @@
 #define FILENAME_WAV_CONVERT "/tmp/covox-wav-convert.wav"
 
 //Store and force overwrite converted wav file in tmp directory as libsndfile can only process wav files
-#define FORMAT_COMMAND_FFMPEG "ffmpeg -y -i %s /tmp/covox-wav-convert.wav"
+#define FORMAT_COMMAND_FFMPEG "ffmpeg -loglevel error -y -i %s /tmp/covox-wav-convert.wav"
 
 #define CODE_SPACEBAR 32
 #define CODE_ESCAPE 27
@@ -81,7 +81,7 @@ int main(int argc, char *argv[]){
 
 		filename = FILENAME_WAV_CONVERT;
 
-		printf("Conversion to WAV completed\n");
+		printf("FFMPEG program ended\n");
 	}
 
 
