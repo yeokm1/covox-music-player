@@ -31,7 +31,7 @@ static const char * format_duration_str (double seconds){
 	min = (int) ((seconds - (hrs * 3600.0)) / 60.0) ;
 	sec = seconds - (hrs * 3600.0) - (min * 60.0) ;
 
-	snprintf (str, sizeof (str) - 1, "%02d:%02d:%06.3f", hrs, min, sec) ;
+	snprintf (str, sizeof (str) - 1, "%02d:%02d:%04.1f", hrs, min, sec) ;
 
 	return str ;
 }
@@ -257,15 +257,30 @@ int main(int argc, char *argv[]){
   while(1){
 		usleep(100000);
 
+		double secondsPlayed = 1.0 * frameNumber / sampleRate;
+
+		const char * currentPlayTime = format_duration_str(secondsPlayed);
+
+		int framesSkipped = 0;
+
 		if(framesSkippedCumulativePlaybackThread != framesSkippedCumulativeUIThread){
 
 			int diff = framesSkippedCumulativePlaybackThread - framesSkippedCumulativeUIThread;
 
 			framesSkippedCumulativeUIThread = framesSkippedCumulativePlaybackThread;
 
-			printf("framesSkipped %d\n", diff);
+			framesSkipped = diff;
 
 		}
+
+		printf("\rPosition: %s, framesSkipped: %03d", currentPlayTime, framesSkipped);
+
+		if(framesSkipped > 0){
+			printf("\n");
+		}
+
+
+		fflush(stdout);
 
 	}
 
