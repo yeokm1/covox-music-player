@@ -2,7 +2,6 @@
 #include <stdlib.h>
 #include <unistd.h>
 #include <sys/io.h>
-#include <sys/types.h>
 #include <sndfile.h>
 #include <stdint.h>
 #include <limits.h>
