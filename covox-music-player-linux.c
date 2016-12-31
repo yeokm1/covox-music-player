@@ -31,6 +31,9 @@ const char * getFilenameExtension(const char *filename);
 uint8_t mapShortTo8bit(short input);
 long long getCurrentNanoseconds();
 void *playbackThreadFunction(void *inputPtr);
+void setKeyboardNonBlock();
+void revertKeyboardBlock();
+
 
 struct termios initial_settings, new_settings;
 
@@ -54,7 +57,6 @@ int channels;
 
 long framesSkippedCumulativeUIThread = 0;
 long framesSkippedCumulativePlaybackThread = 0;
-
 
 int main(int argc, char *argv[]){
 
@@ -135,19 +137,7 @@ int main(int argc, char *argv[]){
 	}
 
 
-	//Source https://gist.github.com/whyrusleeping/3983293
-	tcgetattr(0,&initial_settings);
-
-	//Disable delay on getchar
-	new_settings = initial_settings;
-	new_settings.c_lflag &= ~ICANON;
-	new_settings.c_lflag &= ~ECHO;
-	new_settings.c_lflag &= ~ISIG;
-	new_settings.c_cc[VMIN] = 0;
-	new_settings.c_cc[VTIME] = 0;
-
-	tcsetattr(0, TCSANOW, &new_settings);
-
+	setKeyboardNonBlock();
 
 
 	printf("\nFile details:\n");
@@ -267,8 +257,7 @@ int main(int argc, char *argv[]){
 
 	outb(0, parallelPortBaseAddress);
 
-	//Restore previous terminal settings
-	tcsetattr(0, TCSANOW, &initial_settings);
+	revertKeyboardBlock();
 
 	printf("\n");
 
@@ -376,4 +365,23 @@ long long getCurrentNanoseconds(){
 	clock_gettime(CLOCK_MONOTONIC, &spec);
 	long long specTime = (spec.tv_sec * 1E9) + spec.tv_nsec;
 	return specTime;
+}
+
+//Source https://gist.github.com/whyrusleeping/3983293
+void setKeyboardNonBlock(){
+	tcgetattr(0,&initial_settings);
+
+	//Disable delay on getchar
+	new_settings = initial_settings;
+	new_settings.c_lflag &= ~ICANON;
+	new_settings.c_lflag &= ~ECHO;
+	new_settings.c_lflag &= ~ISIG;
+	new_settings.c_cc[VMIN] = 0;
+	new_settings.c_cc[VTIME] = 0;
+
+	tcsetattr(0, TCSANOW, &new_settings);
+}
+
+void revertKeyboardBlock(){
+	tcsetattr(0, TCSANOW, &initial_settings);
 }
