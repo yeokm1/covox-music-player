@@ -35,7 +35,7 @@ void setKeyboardNonBlock();
 void revertKeyboardBlock();
 
 
-struct termios initial_settings, new_settings;
+struct termios initialSettings;
 
 bool pausePlayback = false;
 bool endPlayback = false;
@@ -369,19 +369,21 @@ long long getCurrentNanoseconds(){
 
 //Source https://gist.github.com/whyrusleeping/3983293
 void setKeyboardNonBlock(){
-	tcgetattr(0,&initial_settings);
+	tcgetattr(0, &initialSettings);
+
+	struct termios newSettings;
 
 	//Disable delay on getchar
-	new_settings = initial_settings;
-	new_settings.c_lflag &= ~ICANON;
-	new_settings.c_lflag &= ~ECHO;
-	new_settings.c_lflag &= ~ISIG;
-	new_settings.c_cc[VMIN] = 0;
-	new_settings.c_cc[VTIME] = 0;
+	newSettings = initialSettings;
+	newSettings.c_lflag &= ~ICANON;
+	newSettings.c_lflag &= ~ECHO;
+	newSettings.c_lflag &= ~ISIG;
+	newSettings.c_cc[VMIN] = 0;
+	newSettings.c_cc[VTIME] = 0;
 
-	tcsetattr(0, TCSANOW, &new_settings);
+	tcsetattr(0, TCSANOW, &newSettings);
 }
 
 void revertKeyboardBlock(){
-	tcsetattr(0, TCSANOW, &initial_settings);
+	tcsetattr(0, TCSANOW, &initialSettings);
 }
