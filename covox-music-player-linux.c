@@ -16,6 +16,8 @@
 #define ERROR_CODE_CANNOT_OPEN_FILE 2
 #define ERROR_CODE_PARALLEL_ADDRESS 3
 
+#define COMMAND_FFMPEG_FORMAT_MAX_LENGTH 1000
+
 #define FILENAME_WAV_CONVERT "/tmp/covox-wav-convert.wav"
 
 //Store and force overwrite converted wav file in tmp directory as libsndfile can only process wav files
@@ -75,10 +77,10 @@ int main(int argc, char *argv[]){
 	if(strcmp(fileExtension, "wav") != 0){
 		printf("File is not wav, converting to wav using FFMPEG\n");
 
-		char conversionCommand[50];
+		char conversionCommand[COMMAND_FFMPEG_FORMAT_MAX_LENGTH];
 
 		//Generate conversion command
-		snprintf(conversionCommand, 500, FORMAT_COMMAND_FFMPEG, filename);
+		snprintf(conversionCommand, COMMAND_FFMPEG_FORMAT_MAX_LENGTH, FORMAT_COMMAND_FFMPEG, filename);
 		system(conversionCommand);
 
 		filename = FILENAME_WAV_CONVERT;
