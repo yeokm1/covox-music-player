@@ -300,6 +300,10 @@ int main(int argc, char *argv[]){
 
 		if(!pausePlayback){
 
+			if(frameNumber >= totalCount){
+				break;
+			}
+
 			double secondsPlayed = 1.0 * frameNumber / sampleRate;
 
 			const char * currentPlayTime = format_duration_str(secondsPlayed);
