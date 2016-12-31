@@ -42,7 +42,7 @@ bool endPlayback = false;
 int parallelPortBaseAddress;
 
 short * dataBuffer;
-int totalCount;
+int totalFramesToPlay;
 
 long long nanosecondsPerFrame;
 long long startSpecTime;
@@ -166,10 +166,10 @@ int main(int argc, char *argv[]){
 	int totalItems = frames * channels;
 
 	dataBuffer = (short *) malloc(totalItems * sizeof(short));
-	totalCount = sf_readf_short (soundFile, dataBuffer, frames);
+	totalFramesToPlay = sf_readf_short (soundFile, dataBuffer, frames);
 	sf_close(soundFile);
 
-	printf("Total Frames Read from file: %d\n\n", totalCount);
+	printf("Total Frames Read from file: %d\n\n", totalFramesToPlay);
 
 	printf("Press spacebar to pause, Escape to exit\n\n");
 
@@ -190,7 +190,7 @@ int main(int argc, char *argv[]){
 
 		if(!pausePlayback){
 
-			if(currentFrameNumber >= totalCount){
+			if(currentFrameNumber >= totalFramesToPlay){
 				break;
 			}
 
@@ -282,7 +282,7 @@ void *playbackThreadFunction(void *inputPtr){
 		timeSinceStart = currentSpecTime - startSpecTime;
 		currentFrameNumber = timeSinceStart / nanosecondsPerFrame;
 
-		if(currentFrameNumber >= totalCount){
+		if(currentFrameNumber >= totalFramesToPlay){
 			break;
 		}
 
