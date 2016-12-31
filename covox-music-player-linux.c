@@ -225,7 +225,7 @@ int main(int argc, char *argv[]){
 
 				long long currentTime = getCurrentNanoseconds();
 
-				//We add the time we spent on pause to the time since start so the playback thread will be able to pace itself
+				//We add the time we spent on pause to the time since start so the playback thread will have a compensated starting reference frame
 				long long timeOnPause = currentTime - pauseTime;
 				startSpecTime += timeOnPause;
 
