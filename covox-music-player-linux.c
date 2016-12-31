@@ -25,43 +25,15 @@
 #define CODE_SPACEBAR 32
 #define CODE_ESCAPE 27
 
+const char * formatDurationStr (double seconds);
+const char * generateDurationStr (SF_INFO *sfinfo);
+
 struct termios initial_settings, new_settings;
 
 bool pausePlayback = false;
 bool endPlayback = false;
 
 
-static const char * format_duration_str (double seconds){
-	static char str [128] ;
-	int hrs, min ;
-	double sec ;
-
-	memset (str, 0, sizeof (str)) ;
-
-	hrs = (int) (seconds / 3600.0) ;
-	min = (int) ((seconds - (hrs * 3600.0)) / 60.0) ;
-	sec = seconds - (hrs * 3600.0) - (min * 60.0) ;
-
-	snprintf (str, sizeof (str) - 1, "%02d:%02d:%04.1f", hrs, min, sec) ;
-
-	return str ;
-}
-
-
-static const char * generate_duration_str (SF_INFO *sfinfo){
-	double seconds ;
-
-	if (sfinfo->samplerate < 1)
-	return NULL ;
-
-	if (sfinfo->frames / sfinfo->samplerate > 0x7FFFFFFF)
-	return "unknown" ;
-
-	seconds = (1.0 * sfinfo->frames) / sfinfo->samplerate ;
-
-
-	return format_duration_str (seconds) ;
-}
 
 //From: http://stackoverflow.com/questions/5309471/getting-file-extension-in-c
 const char * get_filename_ext(const char *filename) {
@@ -269,7 +241,7 @@ int main(int argc, char *argv[]){
 	printf ("Format      : 0x%08X\n", sfinfo.format) ;
 	printf ("Sections    : %d\n", sfinfo.sections) ;
 	printf ("Seekable    : %s\n", (sfinfo.seekable ? "TRUE" : "FALSE")) ;
-	printf ("Duration    : %s\n", generate_duration_str (&sfinfo)) ;
+	printf ("Duration    : %s\n", generateDurationStr (&sfinfo)) ;
 
 	int totalItems = frames * channels;
 
@@ -306,7 +278,7 @@ int main(int argc, char *argv[]){
 
 			double secondsPlayed = 1.0 * frameNumber / sampleRate;
 
-			const char * currentPlayTime = format_duration_str(secondsPlayed);
+			const char * currentPlayTime = formatDurationStr(secondsPlayed);
 
 			int framesSkipped = 0;
 
@@ -378,4 +350,36 @@ int main(int argc, char *argv[]){
 	}
 
 	return 0;
+	}
+
+	const char * formatDurationStr (double seconds){
+		static char str [128] ;
+		int hrs, min ;
+		double sec ;
+
+		memset (str, 0, sizeof (str)) ;
+
+		hrs = (int) (seconds / 3600.0) ;
+		min = (int) ((seconds - (hrs * 3600.0)) / 60.0) ;
+		sec = seconds - (hrs * 3600.0) - (min * 60.0) ;
+
+		snprintf (str, sizeof (str) - 1, "%02d:%02d:%04.1f", hrs, min, sec) ;
+
+		return str ;
+	}
+
+
+	const char * generateDurationStr (SF_INFO *sfinfo){
+		double seconds ;
+
+		if (sfinfo->samplerate < 1)
+		return NULL ;
+
+		if (sfinfo->frames / sfinfo->samplerate > 0x7FFFFFFF)
+		return "unknown" ;
+
+		seconds = (1.0 * sfinfo->frames) / sfinfo->samplerate ;
+
+
+		return formatDurationStr(seconds) ;
 	}
