@@ -179,11 +179,9 @@ int main(int argc, char *argv[]){
 	frameNumber = 0;
 	previousFrameNumber = 0;
 
-	//setbuf(stdout, NULL);
 
 	pthread_t playBackThread;
 	pthread_create(&playBackThread, NULL, playbackThreadFunction, NULL);
-
 
   while(true){
 		usleep(100000);
@@ -201,13 +199,8 @@ int main(int argc, char *argv[]){
 			int framesSkipped = 0;
 
 			if(framesSkippedCumulativePlaybackThread != framesSkippedCumulativeUIThread){
-
-				int diff = framesSkippedCumulativePlaybackThread - framesSkippedCumulativeUIThread;
-
+				framesSkipped = framesSkippedCumulativePlaybackThread - framesSkippedCumulativeUIThread;
 				framesSkippedCumulativeUIThread = framesSkippedCumulativePlaybackThread;
-
-				framesSkipped = diff;
-
 			}
 
 			printf("\rPosition: %s, framesSkipped: %03d", currentPlayTime, framesSkipped);
@@ -283,8 +276,6 @@ void *playbackThreadFunction(void *inputPtr){
 
 		currentSpecTime = getCurrentNanoseconds();
 		timeSinceStart = currentSpecTime - startSpecTime;
-
-
 		frameNumber = timeSinceStart / nanosecondsPerFrame;
 
 		if(frameNumber >= totalCount){
