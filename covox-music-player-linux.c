@@ -31,9 +31,8 @@ const char * getFilenameExtension(const char *filename);
 uint8_t mapShortTo8bit(short input);
 long long getCurrentNanoseconds();
 void *playbackThreadFunction(void *inputPtr);
-void setKeyboardNonBlock(struct termios initialSettings);
-void restoreKeyboardBlocking(struct termios initialSettings);
 
+struct termios initial_settings, new_settings;
 
 bool pausePlayback = false;
 bool endPlayback = false;
@@ -136,6 +135,20 @@ int main(int argc, char *argv[]){
 	}
 
 
+	//Source https://gist.github.com/whyrusleeping/3983293
+	tcgetattr(0,&initial_settings);
+
+	//Disable delay on getchar
+	new_settings = initial_settings;
+	new_settings.c_lflag &= ~ICANON;
+	new_settings.c_lflag &= ~ECHO;
+	new_settings.c_lflag &= ~ISIG;
+	new_settings.c_cc[VMIN] = 0;
+	new_settings.c_cc[VTIME] = 0;
+
+	tcsetattr(0, TCSANOW, &new_settings);
+
+
 
 	printf("\nFile details:\n");
 
@@ -177,8 +190,7 @@ int main(int argc, char *argv[]){
 	frameNumber = 0;
 	previousFrameNumber = 0;
 
-	struct termios initialSettings;
-	setKeyboardNonBlock(initialSettings);
+	//setbuf(stdout, NULL);
 
 	pthread_t playBackThread;
 	pthread_create(&playBackThread, NULL, playbackThreadFunction, NULL);
@@ -225,7 +237,7 @@ int main(int argc, char *argv[]){
 
 				long long currentTime = getCurrentNanoseconds();
 
-				//We add the time we spent on pause to the time since start so the playback thread will have a compensated starting reference frame
+				//We add the time we spent on pause to the time since start so the playback thread will be able to pace itself
 				long long timeOnPause = currentTime - pauseTime;
 				startSpecTime += timeOnPause;
 
@@ -255,7 +267,8 @@ int main(int argc, char *argv[]){
 
 	outb(0, parallelPortBaseAddress);
 
-	restoreKeyboardBlocking(initialSettings);
+	//Restore previous terminal settings
+	tcsetattr(0, TCSANOW, &initial_settings);
 
 	printf("\n");
 
@@ -312,30 +325,6 @@ void *playbackThreadFunction(void *inputPtr){
 	}
 
 }
-
-
-//Source https://gist.github.com/whyrusleeping/3983293
-void setKeyboardNonBlock(struct termios initialSettings){
-
-	struct termios newSettings;
-
-	tcgetattr(0, &initialSettings);
-
-	//Disable delay on getchar
-  newSettings = initialSettings;
-	newSettings.c_lflag &= ~ICANON;
-	newSettings.c_lflag &= ~ECHO;
-	newSettings.c_lflag &= ~ISIG;
-	newSettings.c_cc[VMIN] = 0;
-	newSettings.c_cc[VTIME] = 0;
-
-	tcsetattr(0, TCSANOW, &newSettings);
-}
-
-void restoreKeyboardBlocking(struct termios initialSettings){
-	tcsetattr(0, TCSANOW, &initialSettings);
-}
-
 
 const char * formatDurationStr (double seconds){
 	static char str [128] ;
