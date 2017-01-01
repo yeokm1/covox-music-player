@@ -32,11 +32,7 @@ const char * getFilenameExtension(const char *filename);
 uint8_t mapShortTo8bit(short input);
 long long getCurrentNanoseconds();
 void *playbackThreadFunction(void *inputPtr);
-void setKeyboardNonBlock();
-void revertKeyboardBlock();
-
-
-struct termios initialSettings;
+void setUnblockKeyboard(bool newState);
 
 bool pausePlayback = false;
 bool endPlayback = false;
@@ -141,7 +137,7 @@ int main(int argc, char *argv[]){
 	}
 
 
-	setKeyboardNonBlock();
+	setUnblockKeyboard(true);
 
 
 	printf("\nFile details:\n");
@@ -258,7 +254,7 @@ int main(int argc, char *argv[]){
 
 	printf("\n");
 
-	revertKeyboardBlock();
+	setUnblockKeyboard(false);
 
 	//Take away permissions to access port
 	if (ioperm(parallelPortBaseAddress, 8, 0)) {
@@ -364,22 +360,26 @@ long long getCurrentNanoseconds(){
 }
 
 //Source https://gist.github.com/whyrusleeping/3983293
-void setKeyboardNonBlock(){
-	tcgetattr(0, &initialSettings);
+void setUnblockKeyboard(bool newState){
+	static struct termios initialSettings;
 
-	struct termios newSettings;
+	if(newState){
+		tcgetattr(0, &initialSettings);
 
-	//Disable delay on getchar
-	newSettings = initialSettings;
-	newSettings.c_lflag &= ~ICANON;
-	newSettings.c_lflag &= ~ECHO;
-	newSettings.c_lflag &= ~ISIG;
-	newSettings.c_cc[VMIN] = 0;
-	newSettings.c_cc[VTIME] = 0;
+		struct termios newSettings;
 
-	tcsetattr(0, TCSANOW, &newSettings);
-}
+		//Disable delay on getchar
+		newSettings = initialSettings;
+		newSettings.c_lflag &= ~ICANON;
+		newSettings.c_lflag &= ~ECHO;
+		newSettings.c_lflag &= ~ISIG;
+		newSettings.c_cc[VMIN] = 0;
+		newSettings.c_cc[VTIME] = 0;
 
-void revertKeyboardBlock(){
-	tcsetattr(0, TCSANOW, &initialSettings);
+		tcsetattr(0, TCSANOW, &newSettings);
+	} else {
+		tcsetattr(0, TCSANOW, &initialSettings);
+	}
+
+
 }
