@@ -16,6 +16,7 @@
 #define ERROR_CODE_WRONG_ARG 1
 #define ERROR_CODE_CANNOT_OPEN_FILE 2
 #define ERROR_CODE_PARALLEL_ADDRESS 3
+#define ERROR_CODE_PARALLEL_PERMISSION 4
 
 #define COMMAND_FFMPEG_FORMAT_MAX_LENGTH 1000
 
@@ -95,11 +96,15 @@ int main(int argc, char *argv[]){
 
 	parallelPortBaseAddress = (int)strtol(parallelPortAddressStr, NULL, 0);
 
-	if(parallelPortBaseAddress == 0L //Unable to convert given address to hex number
-		|| ioperm(parallelPortBaseAddress, 8, 1) == -1)	{ //Set permissions to access port
+	//Unable to convert given address to hex number
+	if(parallelPortBaseAddress == 0L){
+		printf("Invalid parallel port base address.\n");
+		return ERROR_CODE_PARALLEL_ADDRESS;
+	}
 
-			printf("Invalid parallel port base address. Do you have root privileges?\n");
-			return ERROR_CODE_PARALLEL_ADDRESS;
+	if(ioperm(parallelPortBaseAddress, 8, 1) == -1)	{ //Set permissions to access port
+		printf("Cannot open parallel port address. Do you have root privileges?\n");
+		return ERROR_CODE_PARALLEL_PERMISSION;
 	}
 
 
