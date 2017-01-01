@@ -1,6 +1,6 @@
 # covox-music-player
 
-A Linux program that plays MP3 or WAV files to the [Covox Speech Thing](https://en.wikipedia.org/wiki/Covox_Speech_Thing) or its clones via a native parallel port. MP3 files are converted to WAV using FFmpeg as an intermediate step.
+A Linux program that plays MP3 or WAV files to the [Covox Speech Thing](https://en.wikipedia.org/wiki/Covox_Speech_Thing) or its clones via a native parallel port. MP3 files are converted to WAV using FFmpeg as an intermediate step. WAV files are processed using the [libsndfile](http://www.mega-nerd.com/libsndfile/) library.
 
 The original Covox can't be easily purchased this days but you can fabricate your own like what I have did [here](https://github.com/yeokm1/pcb-covox) and [here](https://github.com/yeokm1/pcb-covox-amp).
 
@@ -36,3 +36,13 @@ gcc covox-music-player-linux.c -o covox-music-player-linux.out -Wall -lsndfile -
 ```
 
 ## Running the program
+
+```bash
+sudo ./covox-music-player-linux.out ./linux-covox-player 0x378 file.mp3
+```
+
+Replace `0x378` with the address of your parallel port such as `0xd020` or `0x3008` which are used on my systems. The program requires root access in order to access the parallel port addresses. View the video above to see how to obtain the addresses with the commands `lspci -v` or `cat /proc/ioports | grep parport`.
+
+## References
+
+1. [Find Parallel Port address on Linux](http://stackoverflow.com/questions/8829820/finding-memory-address-of-a-parallel-port-on-linux)
