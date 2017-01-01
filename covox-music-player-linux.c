@@ -11,6 +11,7 @@
 #include <termios.h>
 #include <stdbool.h>
 
+#define MESSAGE_INITIAL "\nCovox Music Player, Copyright 2017 Yeo Kheng Meng, MIT License\n"
 
 #define ERROR_CODE_WRONG_ARG 1
 #define ERROR_CODE_CANNOT_OPEN_FILE 2
@@ -62,6 +63,8 @@ int main(int argc, char *argv[]){
 		printf("Insufficient arguments: Require music file and first parallel port address eg: ./linux-covox-player 0x378 file.mp3\n");
 		return ERROR_CODE_WRONG_ARG;
 	}
+
+	puts(MESSAGE_INITIAL);
 
 	char * parallelPortAddressStr = argv[1];
 	char * filename = argv[2];
