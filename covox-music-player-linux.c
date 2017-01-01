@@ -305,6 +305,8 @@ void *playbackThreadFunction(void *inputPtr){
 		outb(smallValue, parallelPortBaseAddress);
 	}
 
+	return NULL;
+
 }
 
 const char * formatDurationStr (double seconds){
