@@ -23,7 +23,7 @@
 //Store and force overwrite converted wav file in tmp directory as libsndfile can only process wav files
 #define FORMAT_COMMAND_FFMPEG "ffmpeg -loglevel error -y -i %s /tmp/covox-wav-convert.wav"
 
-#define CODE_SPACEBAR 32
+#define CODE_SPACEBAR ' '
 #define CODE_ESCAPE 27
 
 const char * formatDurationStr (double seconds);
@@ -209,7 +209,7 @@ int main(int argc, char *argv[]){
 				framesSkippedCumulativeUIThread = framesSkippedCumulativePlaybackThread;
 			}
 
-			printf("\rPosition: %s, framesSkipped: %03d", currentPlayTime, framesSkipped);
+			printf("\rPosition: %s, framesSkipped: %04d", currentPlayTime, framesSkipped);
 
 			if(framesSkipped > 0){
 				printf("\n");
@@ -234,7 +234,7 @@ int main(int argc, char *argv[]){
 				//We need to pause here
 				pausePlayback = true;
 				pauseTime = getCurrentNanoseconds();
-				printf("\nPaused. Press spacebar to resume.");
+				printf("\nPaused: Press space to resume, Esc to end");
 			}
 
 
