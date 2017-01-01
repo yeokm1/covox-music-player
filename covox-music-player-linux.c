@@ -98,7 +98,7 @@ int main(int argc, char *argv[]){
 	if(parallelPortBaseAddress == 0L //Unable to convert given address to hex number
 		|| ioperm(parallelPortBaseAddress, 8, 1) == -1)	{ //Set permissions to access port
 
-			printf("Invalid parallel port base address.\n");
+			printf("Invalid parallel port base address. Do you have root privileges?\n");
 			return ERROR_CODE_PARALLEL_ADDRESS;
 	}
 
