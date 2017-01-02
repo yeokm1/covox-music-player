@@ -10,7 +10,11 @@ The original Covox can't be easily purchased this days but you can fabricate you
 
 Video of the program in action.
 
-![Screen](images/screenshot.jpg)
+![Screen](images/screenshot.png)
+
+Screenshot of my program
+
+![Screen](images/everything-in.jpg)
 
 Terminal on the right is my program running. Terminal on the left is to obtain the IO address of the parallel port with `lspci -v` or `cat /proc/ioports | grep parport`.
 
