@@ -11,7 +11,7 @@
 #include <termios.h>
 #include <stdbool.h>
 
-#define MESSAGE_INITIAL "\nCovox Music Player, Copyright 2017 Yeo Kheng Meng, MIT License\n"
+#define MESSAGE_INITIAL "\nCovox Music Player, Copyright 2017 Yeo Kheng Meng, MIT License\nSource Code: https://github.com/yeokm1/covox-music-player\n"
 
 #define ERROR_CODE_WRONG_ARG 1
 #define ERROR_CODE_CANNOT_OPEN_FILE 2
