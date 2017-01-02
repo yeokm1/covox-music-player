@@ -42,7 +42,7 @@ gcc covox-music-player-linux.c -o covox-music-player-linux.out -Wall -lsndfile -
 ## Running the program
 
 ```bash
-sudo ./covox-music-player-linux.out ./linux-covox-player 0x378 file.mp3
+sudo ./covox-music-player-linux.out 0x378 file.mp3
 ```
 
 Replace `0x378` with the address of your parallel port such as `0xd020` or `0x3008` which are used on my systems. The program requires root access in order to access the parallel port addresses. View the video above to see how to obtain the addresses with the commands `lspci -v` or `cat /proc/ioports | grep parport`.
