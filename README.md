@@ -29,10 +29,10 @@ USB-Parallel adapters are best avoided as they are not *true* parallel port hard
 The system I tested this on is Linux Mint 18 (based on Ubuntu 16.04) but it should work on other distributions as well.
 
 ```bash
-sudo apt-get update
+sudo apt update
 
 #Install dependencies
-sudo apt-get install gcc libsndfile-dev ffmpeg
+sudo apt install gcc build-essential libsndfile-dev ffmpeg
 
 git clone https://github.com/yeokm1/covox-music-player.git
 cd covox-music-player
