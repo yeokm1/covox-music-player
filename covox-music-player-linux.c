@@ -441,7 +441,6 @@ int logIeee1284ResultAndDetermineExitCode(enum E1284 errorCode) {
 		case E1284_OK:
 			printf("Everything went fine\n");
 			return 0;
-			break;
 		case E1284_NOTIMPL:
 			printf("Not implemented in libieee1284\n");
 			return ERROR_CODE_PARALLEL_PORTS_DETECTION;
