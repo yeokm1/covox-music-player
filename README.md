@@ -4,6 +4,8 @@ A Linux program that plays MP3 or WAV files to the [Covox Speech Thing](https://
 
 The original Covox can't be easily purchased this days but you can fabricate your own like what I have did [here](https://github.com/yeokm1/pcb-covox) and [here](https://github.com/yeokm1/pcb-covox-amp).
 
+If you prefer a ready-made alternative, there is also a high-quality Covox clone called the CVX4, which can be ordered on-line [here](https://www.serdashop.com/CVX4).
+
 ## Video and images
 
 [![](http://img.youtube.com/vi/jAaXj0RK7V8/0.jpg)](https://www.youtube.com/watch?v=jAaXj0RK7V8)
@@ -32,11 +34,11 @@ The system I tested this on is Linux Mint 18 (based on Ubuntu 16.04) but it shou
 sudo apt update
 
 #Install dependencies
-sudo apt install gcc build-essential libsndfile-dev ffmpeg
+sudo apt install gcc build-essential libsndfile-dev libieee1284-3-dev ffmpeg
 
 git clone https://github.com/yeokm1/covox-music-player.git
 cd covox-music-player
-gcc covox-music-player-linux.c -o covox-music-player-linux.out -Wall -lsndfile -pthread
+gcc covox-music-player-linux.c -o covox-music-player-linux.out -Wall -lsndfile -pthread -lieee1284
 ```
 
 ## Running the program
@@ -46,6 +48,8 @@ sudo ./covox-music-player-linux.out 0x378 file.mp3
 ```
 
 Replace `0x378` with the address of your parallel port such as `0xd020` or `0x3008` which are used on my systems. The program requires root access in order to access the parallel port addresses. View the video above to see how to obtain the addresses with the commands `lspci -v` or `cat /proc/ioports | grep parport`.
+
+The tool might also build and work on non-x86 systems (as of yet untested), in which case the parallel port might have a name instead of an address. The detected parallel ports will be listed with their names and/or I/O addresses on startup. You can type any name in the list as the address argument.
 
 ## References
 
