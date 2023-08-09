@@ -11,6 +11,7 @@
 #include <termios.h>
 #include <stdbool.h>
 #include <ieee1284.h>
+#include <errno.h>
 
 #define MESSAGE_INITIAL "\nCovox Music Player, Copyright 2017 Yeo Kheng Meng, MIT License\nSource Code: https://github.com/yeokm1/covox-music-player\n"
 
@@ -91,7 +92,7 @@ int main(int argc, char *argv[]){
 
 	printf("Parallel ports detected on this system:\n");
 	for (int i = 0; i < parports.portc; i++) {
-		printf(" * Address/name: %s", parports.portv[i]->name);
+		printf(" * Name: %s, Address: %ld", parports.portv[i]->name, parports.portv[i]->base_addr);
 		if (strcmp(parallelPortAddressStr, parports.portv[i]->name) == 0) {
 			printf(" (selected)");
 			selectedPort = parports.portv[i];
@@ -140,7 +141,10 @@ int main(int argc, char *argv[]){
 	// See https://linux.die.net/man/3/libieee1284
 	ieee1284_free_ports(&parports);
 
+	errno = 0;
 	enum E1284 parPortClaimResult = ieee1284_claim(selectedPort);
+
+	printf("after claim errno code %d\n", errno);
 	if (parPortClaimResult != E1284_OK) {
 		printf("Could not claim parallel port %s.", selectedPort->name);
 		printf("Do you have root privileges? ");
