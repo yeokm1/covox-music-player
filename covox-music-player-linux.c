@@ -10,6 +10,7 @@
 #include <pthread.h>
 #include <termios.h>
 #include <stdbool.h>
+#include <ieee1284.h>
 
 #define MESSAGE_INITIAL "\nCovox Music Player, Copyright 2017 Yeo Kheng Meng, MIT License\nSource Code: https://github.com/yeokm1/covox-music-player\n"
 
@@ -17,6 +18,9 @@
 #define ERROR_CODE_CANNOT_OPEN_FILE 2
 #define ERROR_CODE_PARALLEL_ADDRESS 3
 #define ERROR_CODE_PARALLEL_PERMISSION 4
+#define ERROR_CODE_PARALLEL_PORTS_DETECTION 5
+#define ERROR_CODE_PARALLEL_PORTS_NOT_FOUND 6
+#define ERROR_CODE_IEEE1284_UNKNOWN_ERROR 7
 
 #define COMMAND_FFMPEG_FORMAT_MAX_LENGTH 1000
 
@@ -35,11 +39,12 @@ uint8_t mapShortTo8bit(short input);
 long long getCurrentNanoseconds();
 void *playbackThreadFunction(void *inputPtr);
 void setUnblockKeyboard(bool newState);
+int logIeee1284ResultAndDetermineExitCode(enum E1284 errorCode);
 
 bool pausePlayback = false;
 bool endPlayback = false;
 
-int parallelPortBaseAddress;
+struct parport *selectedPort = NULL;
 
 short * dataBuffer;
 int totalFramesToPlay;
@@ -59,6 +64,19 @@ long framesSkippedCumulativePlaybackThread = 0;
 
 int main(int argc, char *argv[]){
 
+	struct parport_list parports = {};
+
+	enum E1284 parportDetectionResult = ieee1284_find_ports(&parports, 0);
+
+	if (parportDetectionResult != E1284_OK) {
+		printf("Parallel port detection failed. ");
+		return logIeee1284ResultAndDetermineExitCode(parportDetectionResult);
+	}
+
+	if (parports.portc < 1) {
+		printf("This system doesn't appear to have any parallel ports.\n");
+		return ERROR_CODE_PARALLEL_PORTS_NOT_FOUND;
+	}
 
 	if(argc < 3){
 		printf("Insufficient arguments: Require music file and first parallel port address eg: ./linux-covox-player 0x378 file.mp3\n");
@@ -70,6 +88,23 @@ int main(int argc, char *argv[]){
 	char * parallelPortAddressStr = argv[1];
 	char * filename = argv[2];
 	const char * fileExtension = getFilenameExtension(filename);
+
+	printf("Parallel ports detected on this system:\n");
+	for (int i = 0; i < parports.portc; i++) {
+		printf(" * Address/name: %s", parports.portv[i]->name);
+		if (strcmp(parallelPortAddressStr, parports.portv[i]->name) == 0) {
+			printf(" (selected)");
+			selectedPort = parports.portv[i];
+		}
+		printf("\n");
+	}
+	printf("\n");
+
+	if (selectedPort == NULL) {
+		printf("None of the parallel ports on this system have an address or name \"%s\".\n"
+			"Please pick one from the list of detected ports above.\n", parallelPortAddressStr);
+		return ERROR_CODE_PARALLEL_ADDRESS;
+	}
 
 	//remove the previous temp file to avoid playing back this file should the ffmpeg conversion fail
 	remove(FILENAME_WAV_CONVERT);
@@ -93,20 +128,24 @@ int main(int argc, char *argv[]){
 
 	printf("Attempting to open parallel port at %s\n", parallelPortAddressStr);
 
-
-	parallelPortBaseAddress = (int)strtol(parallelPortAddressStr, NULL, 0);
-
-	//Unable to convert given address to hex number
-	if(parallelPortBaseAddress == 0L){
-		printf("Invalid parallel port base address.\n");
-		return ERROR_CODE_PARALLEL_ADDRESS;
+	int desiredCapabilities = CAP1284_RAW;
+	enum E1284 parPortOpenResult = ieee1284_open(selectedPort, F1284_EXCL, &desiredCapabilities);
+	if (parPortOpenResult != E1284_OK) {
+		printf("Could not open parallel port %s. ", selectedPort->name);
+		printf("Do you have root privileges? ");
+		return logIeee1284ResultAndDetermineExitCode(parPortOpenResult);
 	}
 
-	if(ioperm(parallelPortBaseAddress, 8, 1) == -1)	{ //Set permissions to access port
-		printf("Cannot open parallel port address. Do you have root privileges?\n");
-		return ERROR_CODE_PARALLEL_PERMISSION;
-	}
+	// After opening the selected port, we no longer need the list of ports.
+	// See https://linux.die.net/man/3/libieee1284
+	ieee1284_free_ports(&parports);
 
+	enum E1284 parPortClaimResult = ieee1284_claim(selectedPort);
+	if (parPortClaimResult != E1284_OK) {
+		printf("Could not claim parallel port %s.", selectedPort->name);
+		printf("Do you have root privileges? ");
+		return logIeee1284ResultAndDetermineExitCode(parPortClaimResult);
+	}
 
 	printf("Attempting to play file %s to port at %s\n", filename, parallelPortAddressStr);
 
@@ -258,16 +297,18 @@ int main(int argc, char *argv[]){
 	free(dataBuffer);
 
 	//Revert parallelPort state to all 0
-	outb(0, parallelPortBaseAddress);
+	ieee1284_write_data(selectedPort, 0);
 
 	printf("\n");
 
 	setUnblockKeyboard(false);
 
 	//Take away permissions to access port
-	if (ioperm(parallelPortBaseAddress, 8, 0)) {
-		printf("Error closing parallel port\n");
-		return ERROR_CODE_PARALLEL_ADDRESS;
+	enum E1284 parPortClosureResult = ieee1284_close(selectedPort);
+	if (parPortClosureResult != E1284_OK) {
+		printf("Could not close parallel port %s.", selectedPort->name);
+		printf("Do you have root privileges? ");
+		return logIeee1284ResultAndDetermineExitCode(parPortClosureResult);
 	}
 
 	return 0;
@@ -310,7 +351,7 @@ void *playbackThreadFunction(void *inputPtr){
 
 
 		uint8_t smallValue = mapShortTo8bit(value);
-		outb(smallValue, parallelPortBaseAddress);
+		ieee1284_write_data(selectedPort, smallValue);
 	}
 
 	return NULL;
@@ -392,4 +433,46 @@ void setUnblockKeyboard(bool newState){
 	}
 
 
+}
+
+int logIeee1284ResultAndDetermineExitCode(enum E1284 errorCode) {
+	printf("IEEE1284: ");
+	switch (errorCode) {
+		case E1284_OK:
+			printf("Everything went fine\n");
+			return 0;
+		case E1284_NOTIMPL:
+			printf("Not implemented in libieee1284\n");
+			return ERROR_CODE_PARALLEL_PORTS_DETECTION;
+		case E1284_NOTAVAIL:
+			printf("Not available on this system\n");
+			return ERROR_CODE_PARALLEL_PORTS_DETECTION;
+		case E1284_TIMEDOUT:
+			printf("Operation timed out\n");
+			return ERROR_CODE_PARALLEL_PORTS_DETECTION;
+		case E1284_REJECTED:
+			printf("IEEE 1284 negotiation rejected\n");
+			return ERROR_CODE_PARALLEL_PORTS_DETECTION;
+		case E1284_NEGFAILED:
+			printf("Negotiation went wrong\n");
+			return ERROR_CODE_PARALLEL_PORTS_DETECTION;
+		case E1284_NOMEM:
+			printf("No memory left\n");
+			return ERROR_CODE_PARALLEL_PORTS_DETECTION;
+		case E1284_INIT:
+			printf("Error initialising port\n");
+			return ERROR_CODE_PARALLEL_PORTS_DETECTION;
+		case E1284_SYS:
+			printf("Error interfacing system\n");
+			return ERROR_CODE_PARALLEL_PORTS_DETECTION;
+		case E1284_NOID:
+			printf("No IEEE 1284 ID available\n");
+			return ERROR_CODE_PARALLEL_PORTS_DETECTION;
+		case E1284_INVALIDPORT:
+			printf("Invalid port\n");
+			return ERROR_CODE_PARALLEL_PORTS_DETECTION;
+		default:
+			printf("Unknown error\n");
+			return ERROR_CODE_IEEE1284_UNKNOWN_ERROR;
+	}
 }
