@@ -11,7 +11,7 @@
 #include <termios.h>
 #include <stdbool.h>
 
-#define MESSAGE_INITIAL "\nCovox Music Player, Copyright 2017 Yeo Kheng Meng, MIT License\nSource Code: https://github.com/yeokm1/covox-music-player\n"
+#define MESSAGE_INITIAL "\nCovox Music Player, Copyright 2017-2024 Yeo Kheng Meng, MIT License\nSource Code: https://github.com/yeokm1/covox-music-player"
 
 #define ERROR_CODE_WRONG_ARG 1
 #define ERROR_CODE_CANNOT_OPEN_FILE 2
@@ -61,18 +61,31 @@ int main(int argc, char *argv[]){
 
 
 	if(argc < 3){
-		printf("Insufficient arguments: Require music file and first parallel port address eg: ./linux-covox-player 0x378 file.mp3\n");
+		printf("Insufficient arguments: Require music file and first parallel port address and optionally don't show frame skipping eg: ./covox-music-player-linux 0x378 file.mp3 -s\n");
 		return ERROR_CODE_WRONG_ARG;
 	}
 
-	puts(MESSAGE_INITIAL);
+	printf("%s\n",MESSAGE_INITIAL);
+	printf("Compiled on %s %s\n\n", __DATE__, __TIME__);
 
 	char * parallelPortAddressStr = argv[1];
 	char * filename = argv[2];
 	const char * fileExtension = getFilenameExtension(filename);
 
+	bool showFrameSkip = true;
+
+	if(argc > 3 && (strcmp(argv[3], "-s") == 0)){
+		showFrameSkip = false;
+	}
+
 	//remove the previous temp file to avoid playing back this file should the ffmpeg conversion fail
 	remove(FILENAME_WAV_CONVERT);
+
+	if(showFrameSkip == true){
+		printf("Will show frame skipping\n");
+	} else {
+		printf("Will not show skipped frames\n");
+	}
 
 	//If file does not have wav extension, call FFMPEG to convert it to wav before proceeding
 	if(strcmp(fileExtension, "wav") != 0){
@@ -178,7 +191,7 @@ int main(int argc, char *argv[]){
 
 	printf("Total Frames Read from file: %d\n\n", totalFramesToPlay);
 
-	printf("Press spacebar to pause, Escape to exit\n\n");
+	printf("Press Spacebar to pause, Escape to exit\n\n");
 
 
 	//Calculate how many nanoseconds to play each frame
@@ -192,7 +205,7 @@ int main(int argc, char *argv[]){
 	pthread_t playBackThread;
 	pthread_create(&playBackThread, NULL, playbackThreadFunction, NULL);
 
-  while(true){
+  	while(true){
 		usleep(100000);
 
 		if(!pausePlayback){
@@ -213,38 +226,46 @@ int main(int argc, char *argv[]){
 				framesSkippedCumulativeUIThread = framesSkippedCumulativePlaybackThread;
 			}
 
-			printf("\rPosition: %s, framesSkipped: %04d", currentPlayTime, framesSkipped);
-
-			if(framesSkipped > 0){
-				printf("\n");
+			if(showFrameSkip){
+				printf("\rPosition: %s, framesSkipped: %04d", currentPlayTime, framesSkipped);
+				
+				if(framesSkipped > 0){
+					printf("\n");
+				}
+			} else {
+				printf("\rPosition: %s", currentPlayTime);
 			}
 		}
 
-		int readChar = getchar();
+		char readChar;
+		int sizeRead = read(STDERR_FILENO, &readChar, 1);
 
-		if(readChar == CODE_SPACEBAR){
+		if(sizeRead > 0){ 
+			if(readChar == CODE_SPACEBAR){
 
-			if(pausePlayback){
-				//We have to unpause here
+				if(pausePlayback){
+					//We have to unpause here
+					long long currentTime = getCurrentNanoseconds();
 
-				long long currentTime = getCurrentNanoseconds();
+					//We add the time we spent on pause to the time since start so the playback thread will be able to pace itself
+					long long timeOnPause = currentTime - pauseTime;
+					startSpecTime += timeOnPause;
 
-				//We add the time we spent on pause to the time since start so the playback thread will be able to pace itself
-				long long timeOnPause = currentTime - pauseTime;
-				startSpecTime += timeOnPause;
+					//Clear current line containing pause message: https://stackoverflow.com/questions/1508490/erase-the-current-printed-console-line
+					printf("\33[2K\r]");
 
-				pausePlayback = false;
-			} else {
-				//We need to pause here
-				pausePlayback = true;
-				pauseTime = getCurrentNanoseconds();
-				printf("\nPaused: Press space to resume, Esc to end");
+					pausePlayback = false;
+				} else {
+					//We need to pause here
+					pausePlayback = true;
+					pauseTime = getCurrentNanoseconds();
+					printf("\nPaused: Press space to resume, Esc to end");
+				}
+
+			} else if(readChar == CODE_ESCAPE){
+				endPlayback = true;
+				break;
 			}
-
-
-		} else if(readChar == CODE_ESCAPE){
-			endPlayback = true;
-			break;
 		}
 
 		fflush(stdout);
@@ -271,7 +292,7 @@ int main(int argc, char *argv[]){
 	}
 
 	return 0;
-	}
+}
 
 void *playbackThreadFunction(void *inputPtr){
 	while(true){

@@ -26,7 +26,7 @@ USB-Parallel adapters are best avoided as they are not *true* parallel port hard
 
 ## Compiling the program
 
-The system I tested this on is Linux Mint 18 (based on Ubuntu 16.04) but it should work on other distributions as well.
+The system I tested this up to Kubuntu 22.04 LTS but it should work on other distributions as well.
 
 ```bash
 sudo apt update
@@ -42,10 +42,12 @@ gcc covox-music-player-linux.c -o covox-music-player-linux.out -Wall -lsndfile -
 ## Running the program
 
 ```bash
-sudo ./covox-music-player-linux.out 0x378 file.mp3
+sudo ./covox-music-player-linux.out 0x378 file.mp3 [-s]
 ```
 
 Replace `0x378` with the address of your parallel port such as `0xd020` or `0x3008` which are used on my systems. The program requires root access in order to access the parallel port addresses. View the video above to see how to obtain the addresses with the commands `lspci -v` or `cat /proc/ioports | grep parport`.
+
+`-s` to not show the frame skipping is optional.
 
 ## References
 
