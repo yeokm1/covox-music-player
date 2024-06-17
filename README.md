@@ -2,7 +2,7 @@
 
 A Linux program that plays MP3 or WAV files to the [Covox Speech Thing](https://en.wikipedia.org/wiki/Covox_Speech_Thing) or its clones via a native parallel port. MP3 files are converted to WAV using FFmpeg as an intermediate step. WAV files are processed using the [libsndfile](http://www.mega-nerd.com/libsndfile/) library.
 
-The original Covox can't be easily purchased this days but you can fabricate your own like what I have did [here](https://github.com/yeokm1/pcb-covox) and [here](https://github.com/yeokm1/pcb-covox-amp).
+You can purchase a [new Covox from Serdashop](https://www.serdashop.com/CVX4).
 
 ## Video and images
 
