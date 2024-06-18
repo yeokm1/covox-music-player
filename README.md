@@ -26,7 +26,7 @@ USB-Parallel adapters are best avoided as they are not *true* parallel port hard
 
 ## Compiling the program
 
-The system I tested this up to Kubuntu 22.04 LTS but it should work on other distributions as well.
+I tested this up to Kubuntu 22.04 LTS but it should work on other distributions as well.
 
 ```bash
 sudo apt update
