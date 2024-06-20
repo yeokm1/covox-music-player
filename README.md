@@ -10,6 +10,10 @@ You can purchase a [new Covox from Serdashop](https://www.serdashop.com/CVX4).
 
 Video of the program in action.
 
+[![](http://img.youtube.com/vi/fYv4o8ltR5U/0.jpg)](https://www.youtube.com/watch?v=fYv4o8ltR5U)
+
+Pushing data to a Tiny Tapeout ASIC doing PWM. More details: https://yeokhengmeng.com/2024/06/my-first-chip-with-tiny-tapeout-cvx/
+
 ![Screen](images/screenshot.png)
 
 Screenshot of my program
