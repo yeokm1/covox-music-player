@@ -30,7 +30,7 @@ USB-Parallel adapters are best avoided as they are not *true* parallel port hard
 
 ## Compiling the program
 
-I tested this up to Kubuntu 22.04 LTS but it should work on other distributions as well.
+I tested this up to Kubuntu 24.04 LTS but it should work on other distributions as well.
 
 ```bash
 sudo apt update
@@ -52,6 +52,21 @@ sudo ./covox-music-player-linux.out 0x378 file.mp3 [-s]
 Replace `0x378` with the address of your parallel port such as `0xd020` or `0x3008` which are used on my systems. The program requires root access in order to access the parallel port addresses. View the video above to see how to obtain the addresses with the commands `lspci -v` or `cat /proc/ioports | grep parport`.
 
 `-s` to not show the frame skipping is optional.
+
+## Direct Write test program
+
+This program enables writing a single value directly to the parallel port address for debug uses. The value range is up to 255.
+
+```bash
+# Compiling
+gcc direct-out.c -o direct-out -Wall
+
+# Writing the single value of 5 to port 0x378
+/direct-out 0x378 5
+
+# Writing the single value of 128 to port 0x4000
+/direct-out 0x4000 128
+```
 
 ## References
 
